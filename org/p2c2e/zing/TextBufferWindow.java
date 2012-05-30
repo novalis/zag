@@ -203,9 +203,15 @@ public final class TextBufferWindow extends Window
       view.repaint();
   }
 
-  protected void putChar(char c)
+  protected void putChar(int c)
   {
-      buffer.append(c);
+      buffer.appendCodePoint(c);
+      lastLineDirty = true;
+  }
+
+  protected void putCharUni(int c)
+  {
+      buffer.appendCodePoint(c);
       lastLineDirty = true;
   }
 
@@ -557,7 +563,6 @@ public final class TextBufferWindow extends Window
       iFlowBreakPos = -1;
       paraBuf = new StringBuffer();
       c = buffer.charAt(iBuf);
-
 
       // layout a paragraph at a time
       while (!isParaEnd && iBuf < buffer.length())

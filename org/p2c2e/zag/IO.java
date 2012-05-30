@@ -19,6 +19,8 @@ final class IO
     (((byte) 'e') << 8) | (byte) 'm';
   static final int Stks = (((byte) 'S') << 24) | (((byte) 't') << 16) |
     (((byte) 'k') << 8) | (byte) 's';
+  static final int MAll = (((byte) 'M') << 24) | (((byte) 'A') << 16) |
+    (((byte) 'l') << 8) | (byte) 'l';
 
   static final int NULL = 0;
   static final int FILTER = 1;
@@ -35,7 +37,16 @@ final class IO
   static final int WINDOW_OPEN = 0x0023;
   static final int WINDOW_CLEAR = 0x002a;
   static final int WINDOW_MOVE_CURSOR = 0x002b;
-  
+  static final int BUFFER_TO_LOWER_CASE_UNI = 0x0120;
+  static final int BUFFER_TO_UPPER_CASE_UNI = 0x0121;
+  static final int BUFFER_TO_TITLE_CASE_UNI = 0x0122;
+  static final int PUT_CHAR_UNI = 0x0128;
+  static final int PUT_STRING_UNI = 0x0129;
+  static final int PUT_BUFFER_UNI = 0x012A;
+  static final int PUT_CHAR_STREAM_UNI = 0x012B;
+  static final int PUT_STRING_STREAM_UNI = 0x012C;
+  static final int PUT_BUFFER_STREAM_UNI = 0x012D;
+
 
   static final Object[] P0 = new Object[0];
   static final Object[] P1 = new Object[1];
@@ -54,7 +65,7 @@ final class IO
 
   HuffmanTree htree;
 
-  LinkedList undoData;
+  LinkedList undoData = new LinkedList();
   Fileref undoFile;
   Stream undoStream;
 
@@ -71,7 +82,7 @@ final class IO
     int stringtbl = z.memory.getInt(28);
     if (stringtbl > 0)
       htree = new HuffmanTree(z, stringtbl);
-
+    /*
     if (undoStream != null)
     {
       Glk.streamClose(undoStream, null);
@@ -84,6 +95,8 @@ final class IO
       undoFile = null;
     }
     undoData = new LinkedList();
+
+    */
     sys = 0;
     rock = 0;
 
@@ -104,17 +117,57 @@ final class IO
   String getStringFromMemory(FastByteBuffer mem, int addr)
   {
     StringBuffer sb = new StringBuffer();
-    byte t = mem.get(addr++);
-    if (t != (byte) 0xe0)
-    {
-      Zag.fatal("Cannot send compressed string to GLK function.");
+    int t = mem.get(addr++);
+    if (t == (byte)0xe0) {
+        while ((t = mem.get(addr++)) != 0)
+            sb.append((char) t);
+    } else if (t == (byte)0xe2) {
+        addr -= 1;
+        while ((t = mem.getInt(addr+=4)) != 0)
+            sb.appendCodePoint(t);
+    } else {
+      Zag.fatal("Cannot send compressed string to GLK function: " + t);
     }
-
-    while ((t = mem.get(addr++)) != 0)
-      sb.append((char) t);
     return sb.toString();
   }
 
+  String getUnicodeStringFromMemory(FastByteBuffer mem, int addr, int len) {
+      StringBuffer sb = new StringBuffer();
+      int end = addr + len*4;
+      while (addr < end) {
+          int t = mem.getInt(addr+=4);
+          sb.appendCodePoint(t);
+      }
+      return sb.toString();
+  }
+
+  void writeUnicodeStringToMemory(String string, FastByteBuffer mem, int addr) {
+      for (int i = 0; i < string.length(); ++i) {
+          int cp = string.codePointAt(i);
+          if (cp > 0xffff) {
+              ++i;
+          }
+          mem.putInt(addr+=4, cp);
+      }
+  }
+
+  String truncate(String str, int len) {
+      StringBuffer sb = new StringBuffer();
+      int newOutLen = 0;
+      int index = 0;
+      while (index < str.length()) {
+          newOutLen ++;
+          if (newOutLen > len) {
+              break;
+          }
+          int cp = str.codePointAt(index++);
+          if (cp > 0xffff) {
+              index ++;
+          }
+          sb.appendCodePoint(cp);
+      }
+      return sb.toString();
+  }
 
   int glk(Zag z, int selector, int numargs, int[] args)
   {
@@ -128,18 +181,36 @@ final class IO
         wrongNumArgs();
       Glk.putChar((char) (args[0] & 0xff));
       break;
+    case PUT_CHAR_UNI:
+      if (numargs != 1)
+        wrongNumArgs();
+      Glk.putCharUni(args[0]);
+      break;
     case PUT_CHAR_STREAM:
       if (numargs != 2)
         wrongNumArgs();
       Glk.putCharStream((Stream) ors.get(new Integer(args[0])), 
                         (char) (args[1] & 0xff));
       break;
-    case PUT_STRING:
+    case PUT_CHAR_STREAM_UNI:
+      if (numargs != 2)
+        wrongNumArgs();
+      Glk.putCharStream((Stream) ors.get(new Integer(args[0])), 
+                        args[1]);
+      break;
+    case PUT_STRING: 
       if (numargs != 1)
         wrongNumArgs();
       Glk.putString(getStringFromMemory(mem, args[0]));
       break;
+    case PUT_STRING_UNI:
+      if (numargs != 1)
+        wrongNumArgs();
+      Glk.putString(getStringFromMemory(mem, args[0]));
+      break;
+
     case PUT_STRING_STREAM:
+    case PUT_STRING_STREAM_UNI:
       if (numargs != 2)
         wrongNumArgs();
       Glk.putStringStream((Stream) ors.get(new Integer(args[0])),
@@ -151,12 +222,25 @@ final class IO
       mem.position(args[0]);      
       Glk.putBuffer(new InByteBuffer(mem.slice()), args[1]);
       break;
+    case PUT_BUFFER_UNI:
+      if (numargs != 2)
+        wrongNumArgs();
+      mem.position(args[0]);      
+      Glk.putBufferUni(new InByteBuffer(mem.slice()), args[1]);
+      break;
     case PUT_BUFFER_STREAM:
       if (numargs != 3)
         wrongNumArgs();
       mem.position(args[1]);      
       Glk.putBufferStream((Stream) ors.get(new Integer(args[0])),
                           new InByteBuffer(mem.slice()), args[2]);
+      break;
+    case PUT_BUFFER_STREAM_UNI:
+      if (numargs != 3)
+        wrongNumArgs();
+      mem.position(args[1]);      
+      Glk.putBufferStreamUni((Stream) ors.get(new Integer(args[0])),
+                             new InByteBuffer(mem.slice()), args[2]);
       break;
     case CHAR_TO_LOWER:
       if (numargs != 1)
@@ -185,7 +269,68 @@ final class IO
       Glk.windowMoveCursor((Window) ors.get(new Integer(args[0])),
                            args[1], args[2]);
       break;
-
+    case BUFFER_TO_LOWER_CASE_UNI:
+        {
+            if (numargs != 3)
+                wrongNumArgs();
+            String unistr = getUnicodeStringFromMemory(mem, args[0] - 4, args[2]);
+            unistr = unistr.toLowerCase();
+            int len = args[1];
+            int outLen = unistr.codePointCount(0, unistr.length());
+            if (outLen > len) {
+                unistr = truncate(unistr, len);
+            }
+            writeUnicodeStringToMemory(unistr, mem, args[0] - 4);
+            ret = outLen;
+        }
+      break;
+    case BUFFER_TO_UPPER_CASE_UNI:
+        {
+            if (numargs != 3)
+                wrongNumArgs();
+            String unistr = getUnicodeStringFromMemory(mem, args[0] - 4, args[2] + 4);
+            unistr = unistr.toUpperCase();
+            int len = args[1];
+            int outLen = unistr.codePointCount(0, unistr.length());
+            if (outLen > len) {
+                unistr = truncate(unistr, len);
+            }
+            writeUnicodeStringToMemory(unistr, mem, args[0] - 4);
+            ret = outLen;
+        }
+      break;
+    case BUFFER_TO_TITLE_CASE_UNI:
+        /*
+          Glk does not actually give enough information to correctly
+          handle title casing -- in particular, locale is not
+          specified.  So we're just going to punt on this and upcase
+          the first letter.  This avoids the need for many megabytes
+          of ICU libraries which wouldn't actually help anyway.
+          Sorry, Dutch and Turkish IF authors -- blame Zarf for not
+          providing proper localization.
+         */
+        {
+            if (numargs != 4)
+                wrongNumArgs();
+            String unistr = getUnicodeStringFromMemory(mem, args[0] - 4, args[2]);
+            boolean lowerrest = args[3] != 0;
+            if (lowerrest) {
+                unistr = unistr.toLowerCase();
+            }
+            StringBuffer sb = new StringBuffer();
+            int firstChar = unistr.codePointAt(0);
+            sb.appendCodePoint(Character.toUpperCase(firstChar));
+            sb.append(unistr.substring(firstChar > 0xffff ? 2 : 1));
+            unistr = sb.toString();
+            int len = args[1];
+            int outLen = unistr.codePointCount(0, unistr.length());
+            if (outLen > len) {
+                unistr = truncate(unistr, len);
+            }
+            writeUnicodeStringToMemory(unistr, mem, args[0] - 4);
+            ret = outLen;
+        }
+      break;
     default:
       int addr;
       Class c;
@@ -407,24 +552,29 @@ final class IO
     }
   }
 
-  void streamNum(Zag z, int n, boolean started, int num)
+  void streamNum(Zag z, int n, boolean started, int position)
   {
     Zag.StringCallResult r;
     int ival;
     String s = String.valueOf(n);
     int len = s.length();
 
-
     switch(sys)
     {
     case GLK:
-      for (int i = 0; i < len; i++)
+      for (int i = position; i < len; i++)
         Glk.putChar(s.charAt(i));
+      if (started) {
+        r = z.popCallstubString();
+        if (r.pc != 0)
+          z.fatal("String-on-string call stub while printing number.");
+      }
       break;
     case FILTER:
-      if (!started)
+      if (!started) {
         z.pushCallstub(0x11, 0);
-      if (num >= len)
+      }
+      if (position >= len)
       {
         r = z.popCallstubString();
         if (r.pc != 0)
@@ -432,9 +582,11 @@ final class IO
       }
       else
       {
+        int tmp = z.pc;
         z.pc = n;
-        z.pushCallstub(0x12, num + 1);
-        z.enterFunction(z.memory, rock, 1, new int[] {(int) s.charAt(num)});
+        z.pushCallstub(0x12, position + 1);
+        z.pc = tmp;
+        z.enterFunction(z.memory, rock, 1, new int[] {(int) s.charAt(position)});
       }
       break;
     default:
@@ -451,6 +603,21 @@ final class IO
       break;
     case GLK:
       Glk.putChar((char) c);
+      break;
+    default:
+    }
+  }
+
+ void streamUniChar(Zag z, int c)
+  {
+    switch(sys)
+    {
+    case FILTER:
+      z.pushCallstub(0, 0);
+      z.enterFunction(z.memory, rock, 1, new int[] {c});
+      break;
+    case GLK:
+      Glk.putCharUni((char) c);
       break;
     default:
     }
@@ -475,7 +642,9 @@ final class IO
       {
         if (inmiddle == 1)
           type = 0xe0;
-        else
+        else if (inmiddle == 3) 
+          type = 0xe2;
+        else 
           type = 0xe1;
       }
 
@@ -568,6 +737,51 @@ final class IO
               n = troot;
             }
             break;
+          case 0x04:
+            switch(sys)
+            {
+            case GLK:
+              Glk.putCharUni(n.u);
+              break;
+            case FILTER:
+              if (!started)
+              {
+                z.pushCallstub(0x11, 0);
+                started = true;
+              }
+              z.pc = addr;
+              z.pushCallstub(0x10, bit);
+              z.enterFunction(z.memory, rock, 1, new int[] { n.u });
+              return;
+            default:
+              break;
+            }
+            n = troot;
+            break;
+          case 0x05:
+            switch(sys)
+            {
+            case GLK:
+              z.memory.position(n.addr);
+              Glk.putBufferUni(new InByteBuffer(z.memory.slice()), n.numargs);
+              n = troot;
+              break;
+            case FILTER:
+                if (!started)
+              {
+                z.pushCallstub(0x11, 0);
+                started = true;
+              }
+              z.pc = addr;
+              z.pushCallstub(0x10, bit);
+              inmiddle = 3;
+              addr = n.addr - 3;
+              done = 2;
+              break;
+            default:
+              n = troot;
+            }
+            break;
           case 0x08:
           case 0x09:
           case 0x0a:
@@ -639,6 +853,34 @@ final class IO
         default:
         }
       }
+      else if (type == 0xe2)
+      {
+        int uch;
+        addr -= 1;
+        switch(sys)
+        {
+        case GLK:
+          while ((uch = z.memory.getInt(addr+=4)) != 0)
+            Glk.putCharUni(uch);
+          break;
+        case FILTER:
+          if (!started)
+          {
+            z.pushCallstub(0x11, 0);
+            started = true;
+          }
+          uch = z.memory.getInt(addr+=4);
+          if (uch != 0)
+          {
+            z.pc = addr+1;
+            z.pushCallstub(0x14, 0);
+            z.enterFunction(z.memory, rock, 1, new int[] {uch});
+            return;
+          }
+          break;
+        default:
+        }
+      }
       else if (type >= 0xe0 && type <= 0xff)
       {
         z.fatal("Attempt to print unknown type of string.");
@@ -679,6 +921,7 @@ final class IO
     }
     int pos = undoStream.getPosition();
     undoData.addFirst(new Integer(pos));
+
     int res = saveGame(z, undoStream.hashCode());
     return res;
   }
@@ -749,6 +992,7 @@ final class IO
       res = restoreState(z, undoStream) ? 0 : 1;
       undoStream.setPosition(pos, Glk.SEEKMODE_START);
     } catch(Exception e) {
+      e.printStackTrace();
       res = 1;
     }
     return res;
@@ -767,12 +1011,12 @@ final class IO
     DataInputStream din;
     FastByteBuffer memBuf = null;
     FastByteBuffer stackBuf = null;
+    FastByteBuffer mallBuf = null;
     int memSize = 0;
     int fileLen; 
     ByteBuffer headBuf = ByteBuffer.allocate(128);
     byte[] gameHeadArr = new byte[128];
     boolean okay = true;
-    boolean done = false;
     boolean checkedHeader = false;
     
     okay &= (((char) in.getChar()) == 'F');
@@ -787,7 +1031,7 @@ final class IO
     okay &= (((char) in.getChar()) == 'S');
 
     iType = in.getInt();
-    while (okay && !done)
+    while (okay)
     {
       switch(iType)
       {
@@ -860,18 +1104,28 @@ final class IO
         in.getBuffer(stackBuf.asByteBuffer(), chunkSize);
         break;
 
+      case MAll:
+        chunkSize = in.getInt();
+        mallBuf = new FastByteBuffer(chunkSize);
+        in.getBuffer(mallBuf.asByteBuffer(), chunkSize);
+        break;
+
       default:
         chunkSize = in.getInt();
         in.setPosition(chunkSize, Glk.SEEKMODE_CURRENT);
       }
 
-      done = (checkedHeader && stackBuf != null && memBuf != null);
-      if (!done)
-      {
+      //remoced - DMT
+      //done = (checkedHeader && stackBuf != null && memBuf != null);
+      //      if (!done)
+      //{
         if ((chunkSize & 1) != 0)
           in.getChar();
         iType = in.getInt();
-      }
+        if (iType == -1) {
+            break;
+        }
+        //}
     }
 
     if (okay)
@@ -886,6 +1140,27 @@ final class IO
       z.sp = stackBuf.capacity();
       for (int i = 0; i < z.sp; i++)
         z.stack.put(i, stackBuf.get(i));
+
+      if (mallBuf != null) {
+          mallBuf.position(0);
+
+          int heapStart = mallBuf.getInt();
+          int nblocks = mallBuf.getInt();
+          int end = 0;
+          Heap heap = new Heap(z, heapStart);
+          for (int i = 0; i < nblocks; ++i) {
+              int blockStart = mallBuf.getInt();
+              int blockSize = mallBuf.getInt();
+              int blockEnd = blockStart + blockSize;
+              if (blockEnd > end) {
+                  end = blockEnd;
+                  heap.reserveUpTo(end);
+              }
+              heap.mallocAt(blockStart, blockSize);
+          }
+          z.heap = heap;
+      }
+
     }
     
     return okay;
@@ -895,7 +1170,7 @@ final class IO
   {
     int i;
     int pos;
-    int memChunkSize, stackChunkSize;
+    int memChunkSize, stackChunkSize, heapChunkSize = 0;
     SaveSize savesize;
     int startPos = out.getPosition();
 
@@ -947,11 +1222,31 @@ final class IO
     if ((stackChunkSize & 1) != 0)
       out.putChar((int) 0);
 
+    if (z.heap != null && z.heap.isActive()) {
+        out.putChar((int) 'M');
+        out.putChar((int) 'A');
+        out.putChar((int) 'l');
+        out.putChar((int) 'l');
+
+        int [] blocks = z.heap.getUsedBlocks();
+
+        heapChunkSize = 8 + blocks.length * 4;
+        out.putInt(heapChunkSize); 
+
+        out.putInt(z.heap.getHeapStart());
+        out.putInt(blocks.length / 2);
+
+        for (i = 0; i < blocks.length; i ++) {
+            out.putInt(blocks[i]);
+        }
+    }
+
+
     savesize = new SaveSize();
     savesize.size = out.getPosition() - startPos - 4;
     savesize.memSize = memChunkSize;
     savesize.stackSize = stackChunkSize;
-
+    savesize.heapSize = heapChunkSize;
     return savesize;
   }
 
@@ -1005,6 +1300,7 @@ final class IO
     int memSize;
     int stackSize;
     int size;
+    int heapSize;
   }
 
   final class CreationCallback implements ObjectCallback

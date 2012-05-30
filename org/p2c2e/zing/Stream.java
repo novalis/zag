@@ -1,5 +1,6 @@
 package org.p2c2e.zing;
 
+import java.nio.charset.Charset;
 import java.nio.*;
 import java.nio.channels.*;
 import java.io.*;
@@ -47,6 +48,7 @@ public abstract class Stream implements Comparable
   }
 
   public abstract void putChar(int c);
+  public abstract void putCharUni(int c);
 
   public void putInt(int i)
   {
@@ -60,16 +62,33 @@ public abstract class Stream implements Comparable
   {
     int len = s.length();
     for (int i = 0; i < len; i++)
-      putChar(((int) s.charAt(i)) & 0xffff);
+      putChar(((int) s.charAt(i)));
+  }
+
+  public void putStringUni(String s)
+  {
+    int len = s.length();
+    for (int i = 0; i < len; i++)
+      putCharUni(s.charAt(i));
   }
 
   public void putBuffer(ByteBuffer b, int len)
   {
     for (int i = 0; i < len; i++)
-      putChar(((int) b.get(i)) & 0xffff);
+      putChar(((int) b.get(i)));
+  }
+
+  public void putBufferUni(ByteBuffer b, int len)
+  {
+    for (int i = 0; i < len; i++)
+      putCharUni(b.getInt(i*4));
   }
 
   public int getChar()
+  {
+    return -1;
+  }
+  public int getCharUni()
   {
     return -1;
   }
@@ -101,9 +120,23 @@ public abstract class Stream implements Comparable
     return i;
   }
 
+  public int getBufferUni(ByteBuffer b, int len)
+  {
+    int i = 0;
+    int val = getCharUni();
+    
+    while (i < len && val != -1)
+    {
+      i++;
+      b.putInt(val);
+      val = getCharUni();
+    }
+    return i;
+  }
+
   public int getLine(ByteBuffer b, int len)
   {
-    int i = 0;;
+    int i = 0;
     int val = getChar();
 
     while (i < len - 1 && val != -1)
@@ -116,6 +149,26 @@ public abstract class Stream implements Comparable
     }
     if (len > 0)
       b.put((byte) 0);
+
+    return i;
+  }
+
+
+  public int getLineUni(ByteBuffer b, int len)
+  {
+    int i = 0;
+    int val = getCharUni();
+
+    while (i < len - 1 && val != -1)
+    {
+      i++;
+      b.putInt(val);
+      if ((char) val == '\n')
+        break;
+      val = getCharUni();
+    }
+    if (len > 0)
+      b.putInt(0);
 
     return i;
   }
@@ -164,7 +217,7 @@ public abstract class Stream implements Comparable
         pos += p;
         break;
       case Glk.SEEKMODE_END:
-        pos += p;
+        pos = len + p;
         break;
       default:
         System.err.println("setting position of memory stream: unknown seek mode");
@@ -179,13 +232,17 @@ public abstract class Stream implements Comparable
       if (canRead && buf != null && pos < len)
       {
         rcount++;
-        pos++;
-        return ((int) buf.get()) & 0xff;
+        pos ++;
+        return buf.get() & 0xff;
       }
       else
       {
         return -1;
       }
+    }
+    public int getCharUni()
+    {
+      return getChar();
     }
 
     public int getBuffer(ByteBuffer b, int l)
@@ -225,7 +282,46 @@ public abstract class Stream implements Comparable
       }
     }
 
+
+    public void putCharUni(int c)
+    {
+      if (canWrite)
+      {
+        wcount++;
+
+        if (buf != null && pos < len)
+        {
+          if (c > 0xff) {
+              c = 0x3f;
+          }
+          buf.put((byte) c);
+          pos++;
+        }
+      }
+    }
+
     public void putBuffer(ByteBuffer b, int l)
+    {
+      byte[] arr;
+      int num = Math.min(l, len - pos);
+
+      if (canWrite)
+      {
+        wcount += l;
+        if (num > 0)
+        {
+          if (buf != null)
+          {
+            arr = new byte[num];
+            b.get(arr);
+            buf.put(arr);
+            pos += num;
+          }
+        }
+      }
+    }
+
+    public void putBufferUni(ByteBuffer b, int l)
     {
       byte[] arr;
       int num = Math.min(l, len - pos);
@@ -238,9 +334,12 @@ public abstract class Stream implements Comparable
         {
           if (buf != null)
           {
-            arr = new byte[num];
-            b.get(arr);
-            buf.put(arr);
+            for (int i = 0; i < num; ++i) {
+                int c = b.getInt();
+                if (c > 0xff)
+                    c = 0x3f;
+                buf.put((byte)c);
+            }
             pos += num;
           }
         }
@@ -313,6 +412,14 @@ public abstract class Stream implements Comparable
         w.echo.putChar(c);
     }
 
+    public void putCharUni(int c)
+    {
+      wcount++;
+      w.putCharUni(c);
+      if (w.echo != null)
+        w.echo.putCharUni(c);
+    }
+
     public void putString(String s)
     {
       wcount += s.length();
@@ -332,14 +439,209 @@ public abstract class Stream implements Comparable
       if (w.echo != null)
         w.echo.putBuffer(b, len);
     }
+    public void putBufferUni(ByteBuffer b, int len)
+    {
+      StringBuffer sb = new StringBuffer();
+      for (int i = 0; i < len; i++)
+        sb.appendCodePoint(b.getInt());
+
+      wcount += len;
+      w.putString(sb.toString());
+      if (w.echo != null)
+        w.echo.putBufferUni(b, len);
+    }
+
   }
+
+  static class UnicodeMemoryStream extends Stream
+  {
+    ByteBuffer buf;
+    int len;
+
+    UnicodeMemoryStream(ByteBuffer buffer, int buflen, int mode)
+    {
+      super(mode);
+      buf = buffer;
+      len = buflen;
+
+      if (mode == Glk.FILEMODE_WRITE_APPEND)
+        System.err.println("Attempt to open memory stream with mode WriteAppend.");
+    }
+
+    public void setPosition(int p, int seekmode)
+    {
+      switch(seekmode)
+      {
+      case Glk.SEEKMODE_START:
+        pos = p;
+        break;
+      case Glk.SEEKMODE_CURRENT:
+        pos += p;
+        break;
+      case Glk.SEEKMODE_END:
+        pos = len + p;
+        break;
+      default:
+        System.err.println("setting position of memory stream: unknown seek mode");
+      }
+      if (pos < 0) pos = 0;
+      if (pos > len) pos = len;
+      buf.position(pos * 4);
+    }
+
+    public int getChar()
+    {
+      if (canRead && buf != null && pos < len)
+      {
+        rcount++;
+        pos ++;
+        int result = buf.getInt();
+        if (result > 0xff) {
+            return 0x3f;
+        }
+        return result;
+      }
+      else
+      {
+        return -1;
+      }
+    }
+
+    public int getCharUni()
+    {
+      if (canRead && buf != null && pos < len)
+      {
+        rcount++;
+        pos ++;
+        return buf.getInt();
+      }
+      else
+      {
+        return -1;
+      }
+    }
+
+    public int getBuffer(ByteBuffer b, int l)
+    {
+      int num = Math.min(l, len - pos);
+
+      if (canRead && buf != null)
+      {
+        if (num > 0)
+        {
+          for (int i = 0; i < num; ++i) {
+            int c = getChar();
+            b.put((byte)c);
+          }
+        }
+        return num;
+      }
+      else
+      {
+        return 0;
+      }
+    }
+
+    public void putChar(int c)
+    {
+      if (canWrite)
+      {
+        wcount++;
+
+        if (buf != null && pos < len)
+        {
+          buf.putInt(c);
+          pos++;
+        }
+      }
+    }
+
+
+    public void putCharUni(int c)
+    {
+      if (canWrite)
+      {
+        wcount++;
+
+        if (buf != null && pos < len)
+        {
+          buf.putInt(c);
+          pos++;
+        }
+      }
+    }
+
+    public void putBuffer(ByteBuffer b, int l)
+    {
+      byte[] arr;
+      int num = Math.min(l, len - pos);
+
+      if (canWrite)
+      {
+        wcount += l;
+
+        if (num > 0)
+        {
+          if (buf != null)
+          {
+            for (int i = 0; i < num; ++i) {
+                buf.putInt(b.get());
+            }
+            pos += num;
+          }
+        }
+      }
+    }
+
+    public void putBufferUni(ByteBuffer b, int l)
+    {
+      byte[] arr;
+      int num = Math.min(l, len - pos);
+
+      if (canWrite)
+      {
+        wcount += l;
+
+        if (num > 0)
+        {
+          if (buf != null)
+          {
+            arr = new byte[num*4];
+            b.get(arr);
+            buf.put(arr);
+            pos += num;
+          }
+        }
+      }
+    }
+
+    public void putString(String s)
+    {
+      int l = s.length();
+      int num = Math.min(l, len - pos);
+
+      if (canWrite)
+      {
+        wcount += l;
+
+        if (buf != null)
+        {
+          //fixme: astral
+          for (int i = 0; i < num; i++)
+            buf.putInt(s.charAt(i));
+          pos += num;
+        }
+      }
+    }
+  }
+
 
   
   static class FileStream extends Stream
   {
     static final String TERMINATOR = System.getProperty("line.separator");
     static final int TERM_LEN = TERMINATOR.length();
-
+    static final Charset UTF32 = Charset.forName("UTF-32BE");
     RandomAccessFile rf;
     FileChannel fc;
     Fileref f;
@@ -348,10 +650,12 @@ public abstract class Stream implements Comparable
     boolean reading = false;
     ByteBuffer rbuf;
     ByteBuffer wbuf;
+    boolean unicode;
 
-    FileStream(Fileref ref, int fmode)
+    FileStream(Fileref ref, int fmode, boolean unicode)
     {
       super(fmode);
+      this.unicode = unicode;
       f = ref;
       pos = 0;
 
@@ -602,7 +906,14 @@ public abstract class Stream implements Comparable
         }
         else
         {
-          wbuf.put((byte) c);
+          if (unicode) {
+            wbuf.put((byte)((c & 0xff000000) >> 24));
+            wbuf.put((byte)((c & 0xff0000) >> 16));
+            wbuf.put((byte)((c & 0xff00) >> 8));
+            wbuf.put((byte)(c & 0xff));
+          } else {
+            wbuf.put((byte) c);
+          }
           pos++;
         }
         wcount++;
@@ -611,6 +922,10 @@ public abstract class Stream implements Comparable
       {
         eio.printStackTrace();
       }
+    }
+
+    public void putCharUni(int c) {
+        putChar(c);
     }
 
     public void putBuffer(ByteBuffer b, int len)
@@ -662,6 +977,55 @@ public abstract class Stream implements Comparable
         eio.printStackTrace();
       }
     }
+    public void putBufferUni(ByteBuffer b, int len)
+    {
+      int tot = len;
+      int l;
+
+      try
+      {
+        if (isText)
+        {
+          super.putBufferUni(b, len);
+        }
+        else
+        {
+          if (reading)
+          {
+            invalidateRead();
+            reading = false;
+          }
+
+          b.limit(b.position() + len * 4);
+          while (tot > 0)
+          {
+            if (!wbuf.hasRemaining())
+              commitWrite();
+            
+            if (tot <= wbuf.remaining())
+            {
+              wbuf.put(b);
+              tot = 0;
+            }
+            else
+            {
+              l = b.limit();
+              tot -= wbuf.remaining();
+              b.limit(b.position() + wbuf.remaining());
+              wbuf.put(b);
+              b.limit(l);
+            }
+          }
+          b.clear();
+        }
+        wcount += len;
+        pos += len;
+      }
+      catch(IOException eio)
+      {
+        eio.printStackTrace();
+      }
+    }
 
     public void putString(String s)
     {
@@ -669,6 +1033,14 @@ public abstract class Stream implements Comparable
         super.putString(s);
       else
         putBuffer(ByteBuffer.wrap(s.getBytes()), s.length());
+    }
+
+    public void putStringUni(String s)
+    {
+      if (isText)
+        super.putStringUni(s);
+      else
+        putBuffer(ByteBuffer.wrap(s.getBytes(UTF32)), s.length());
     }
 
     public Result close()

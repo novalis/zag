@@ -55,6 +55,7 @@ public interface OpConstants
   public static final int STREAMCHAR = 0x70;
   public static final int STREAMNUM = 0x71;
   public static final int STREAMSTR = 0x72;
+  public static final int STREAMUNICHAR = 0x73;
   public static final int GESTALT = 0x100;
   public static final int DEBUGTRAP = 0x101;
   public static final int GETMEMSIZE = 0x102;
@@ -82,6 +83,13 @@ public interface OpConstants
   public static final int CALLFI = 0x161;
   public static final int CALLFII = 0x162;
   public static final int CALLFIII = 0x163;
+  public static final int MZERO = 0x170;
+  public static final int MCOPY = 0x171;
+  public static final int MALLOC = 0x178;
+  public static final int MFREE = 0x179;
+
+  public static final int ACCELFUNC = 0x180;
+  public static final int ACCELPARAM = 0x181;
 
 
   public static final int LOAD = 0;

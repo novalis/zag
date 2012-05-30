@@ -2,7 +2,7 @@ package org.p2c2e.zag;
 
 final class Op implements OpConstants
 {
-  static final Op[] OPS = new Op[0x164];
+  static final Op[] OPS = new Op[0x1C9];
 
   int arity;
   int[] format;
@@ -68,6 +68,7 @@ final class Op implements OpConstants
     OPS[STREAMCHAR] = new Op(1, L);
     OPS[STREAMNUM] = new Op(1, L);
     OPS[STREAMSTR] = new Op(1, L);
+    OPS[STREAMUNICHAR] = new Op(1, L);
     OPS[GESTALT] = new Op(3, LLS);
     OPS[DEBUGTRAP] = new Op(1, L);
     OPS[GETMEMSIZE] = new Op(1, S);
@@ -95,5 +96,13 @@ final class Op implements OpConstants
     OPS[CALLFI] = new Op(3, LLS);
     OPS[CALLFII] = new Op(4, LLLS);
     OPS[CALLFIII] = new Op(5, LLLLS);
+    OPS[MZERO] = new Op(2, LL);
+    OPS[MCOPY] = new Op(3, LLL);
+    OPS[MALLOC] = new Op(2, LS);
+    OPS[MFREE] = new Op(1, L);
+
+    OPS[ACCELFUNC] = new Op(2, LL);
+    OPS[ACCELPARAM] = new Op(2, LL);
+
   }
 }

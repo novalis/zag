@@ -3,6 +3,8 @@ This is Zag, an implementation of glulx v2.0.0 for Java
 
 © 2003-2004, Jon Zeppieri (see license/README-license.txt for details)
 [jalfred97 @ yahoo . com]
+
+© 2012, David Turner <novalis@novalis.org> (unicode, heap, misc fixes)
 -------------------------------------------------------
 
 Contents:

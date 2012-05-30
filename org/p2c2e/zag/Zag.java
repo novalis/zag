@@ -1,6 +1,8 @@
 package org.p2c2e.zag;
 
 import java.io.*;
+import java.lang.System;
+import java.util.Arrays;
 import java.util.Random;
 import org.p2c2e.util.FastByteBuffer;
 import org.p2c2e.zing.Glk;
@@ -39,6 +41,8 @@ public final class Zag implements OpConstants
 
   Random rand = new Random();
 
+  Heap heap;
+
   public Zag(File gf, int iStart) throws IOException
   {
     gamefile = gf;
@@ -62,13 +66,14 @@ public final class Zag implements OpConstants
     DataInputStream in;
     RandomAccessFile f = new RandomAccessFile(gamefile, "r");
     f.seek(fileStartPos);
-    
+
     if (f.read() == 'G' && f.read() == 'l' && f.read() == 'u' && f.read() == 'l')
     {
       f.seek(fileStartPos + 12);
       extstart = f.readInt();
       endmem = f.readInt();
       buf = new FastByteBuffer(endmem);
+      buf.setMinSize(endmem);
 
       f.seek(fileStartPos);
       buf.limit(extstart);
@@ -86,6 +91,7 @@ public final class Zag implements OpConstants
       }
 
       memory = buf;
+      heap = new Heap(this);
 
       ramstart = buf.getInt(8);
       stacksize = buf.getInt(20);
@@ -104,7 +110,7 @@ public final class Zag implements OpConstants
       throw new IOException("Not a glulx file.");
     }
   }
-  
+
 
   private final void storeOperand(FastByteBuffer mem, int mode, 
                                   int addr, int val)
@@ -322,29 +328,26 @@ public final class Zag implements OpConstants
       mem = this.memory;
       stack = this.stack;
       mem.position(pc);
-      opcode = mem.get();
-
+      opcode = ((int)mem.get()) & 0xff;
       if ((opcode & 0x80) != 0)
       {
         if ((opcode & 0x40) != 0)
         {
           opcode &= 0x3f;
-          opcode = (opcode << 8) | mem.get();
-          opcode = (opcode << 8) | mem.get();
-          opcode = (opcode << 8) | mem.get();
+          opcode = (opcode << 8) | ((int)mem.get()) & 0xff;
+          opcode = (opcode << 8) | ((int)mem.get()) & 0xff;
+          opcode = (opcode << 8) | ((int)mem.get()) & 0xff;
         }
         else
         {
           opcode &= 0x7f;
-          opcode = (opcode << 8) | mem.get();
+          opcode = (opcode << 8) | ((int)mem.get()) & 0xff;
         }
       }
-
 
       if (Op.OPS[opcode].format != null)
         parseOperands(Op.OPS[opcode], mem, modes, values);
       pc = mem.position();
-
 
       switch(opcode)
       {
@@ -393,7 +396,11 @@ public final class Zag implements OpConstants
         storeOperand(mem, modes[2], values[2], val);
         break;
       case SSHIFTR:
-        val = ((values[1] & 0xff) > 31) ? 0 : values[0] >> (values[1] & 0xff);
+        if (values[1] >= 32) {
+            val = (values[0] & 0x80000000) == 0 ? 0 : 0xffffffff;
+        } else {
+            val = values[0] >> (values[1] & 0xff);
+        }
         storeOperand(mem, modes[2], values[2], val);
         break;
       case JUMP:
@@ -454,11 +461,59 @@ public final class Zag implements OpConstants
         storeOperand(mem, modes[1], values[1], values[0]);
         break;
       case COPYS:
-        val = (modes[0] == 0x08) ? values[0] : (values[0] >>> 16);
+          switch(modes[0]) {
+          case 0:
+          case 1:
+          case 2:
+          case 3:
+          case 8:
+              val = values[0];
+              break;
+          case 5:
+          case 6:
+          case 7:
+          case 13:
+          case 14:
+          case 15:
+              val = values[0] >> 16;
+              break;
+          //these are unsupported; we'll just do something
+          case 9:
+          case 10:
+          case 11:
+          default:
+
+              val = values[0];
+
+          }
         storeShortOperand(mem, modes[1], values[1], val);
         break;
       case COPYB:
-        val = (modes[0] == 0x08) ? values[0] : (values[0] >>> 24);
+          switch(modes[0]) {
+          case 0:
+          case 1:
+          case 2:
+          case 3:
+          case 8:
+              val = values[0];
+              break;
+          case 5:
+          case 6:
+          case 7:
+          case 13:
+          case 14:
+          case 15:
+              val = values[0] >> 24;
+              break;
+          //these are unsupported; we'll just do something
+          case 9:
+          case 10:
+          case 11:
+          default:
+
+              val = values[0];
+
+          }
         storeByteOperand(mem, modes[1], values[1], val);
         break;
       case SEXS:
@@ -606,6 +661,9 @@ public final class Zag implements OpConstants
       case STREAMSTR:
         io.streamString(this, values[0], 0, 0);
         break;
+      case STREAMUNICHAR:
+        io.streamUniChar(this, values[0]);
+        break;
       case GESTALT:
         storeOperand(mem, modes[2], values[2], gestalt(values[0], values[1]));
         break;
@@ -635,9 +693,13 @@ public final class Zag implements OpConstants
         enterFunction(mem, values[0], 3, funargs);
         break;
       case GETMEMSIZE:
-        storeOperand(mem, modes[0], values[0], endmem);
+        storeOperand(mem, modes[0], values[0], memory.limit());
         break;
       case SETMEMSIZE:
+        if (heap.isActive()) {
+          System.out.println("Unable to set mem size while heap is active");
+          return;
+        }
         storeOperand(mem, modes[1], values[1], setMemSize(values[0]));
         break;
       case GETSTRINGTBL:
@@ -730,6 +792,19 @@ public final class Zag implements OpConstants
         val = io.glk(this, values[0], values[1], funargs);
         storeOperand(mem, modes[2], values[2], val);
         break;
+      case MZERO:
+          Arrays.fill(mem.array(), values[1], values[0] + values[1], (byte)0);
+          break;
+      case MCOPY:
+          System.arraycopy(mem.array(), values[1], mem.array(), values[2], values[0]);
+          break;
+      case MALLOC:
+          int allocated = heap.malloc(values[0]);
+          storeOperand(mem, modes[1], values[1], allocated);
+          break;
+      case MFREE:
+          heap.free(values[0]);
+          break;
       }
     }
   }
@@ -743,7 +818,7 @@ public final class Zag implements OpConstants
     boolean okay = true;
     RandomAccessFile f;
     DataInputStream in;
-    
+
     try
     {
       f = new RandomAccessFile(gamefile, "r");
@@ -790,11 +865,12 @@ public final class Zag implements OpConstants
                                  int keyOffset, int nextOffset, int options)
   {
     byte curKeyByte;
-    int curKey;
+    int curKey = 0;
     boolean found;
     boolean zeroKey;
     int nextAddr;
     FastByteBuffer b = memory;
+    boolean keyIndirect = (options & 0x01) != 0;
     boolean zeroTerm = ((options & 0x02) != 0);
 
     if (keySize < 1 || start < 0)
@@ -805,17 +881,14 @@ public final class Zag implements OpConstants
       found = true;
       zeroKey = true;
 
-      if ((options & 0x01) != 0)
+      if (keyIndirect)
       {
         for (int j = 0; j < keySize; j++)
         {
           curKeyByte = b.get(start + keyOffset + j);
-          found = (curKeyByte == b.get(key + j));
+          found &= (curKeyByte == b.get(key + j));
           if (curKeyByte != (byte) 0)
             zeroKey = false;
-
-          if (found)
-            break;
         }
       }
       else
@@ -825,17 +898,14 @@ public final class Zag implements OpConstants
         case 1:
           curKey = ((int) b.get(start + keyOffset)) & 0xff;
           found = ((key & 0xff) == curKey);
-          zeroKey = (curKey == 0);
           break;
         case 2:
           curKey = ((int) b.getShort(start + keyOffset)) & 0xffff;
           found = ((key & 0xffff) == curKey);
-          zeroKey = (curKey == 0);
           break;
         case 3:
           curKey = (b.getInt(start + keyOffset) >>> 8);
           found = ((key & 0xffffff) == curKey);
-          zeroKey = (curKey == 0);
         case 4:
           curKey = b.getInt(start + keyOffset);
           found = (key == curKey);
@@ -843,15 +913,20 @@ public final class Zag implements OpConstants
         default:
           fatal("Illegal key size for direct linkedsearch.");
         }
+        zeroKey = (curKey == 0);
       }
 
-      if (found || (zeroTerm && zeroKey))
+      if (found)
         break;
+
+      if (zeroTerm && zeroKey) {
+          return 0;
+      }
 
       nextAddr = b.getInt(start + nextOffset);
       if (nextAddr == 0)
         break;
-      
+
       start = nextAddr;
     }
 
@@ -861,7 +936,7 @@ public final class Zag implements OpConstants
       return 0;
   }
 
-  
+
   private final int binarySearch(int key, int keySize, int start, 
                                  int structSize, int numStructs, 
                                  int keyOffset, int options)
@@ -874,17 +949,19 @@ public final class Zag implements OpConstants
     int bottom = 0;
     int top = numStructs;
     FastByteBuffer b = memory;
+    boolean keyIndirect = (options & 0x01) != 0;
+    boolean returnIndex = (options & 0x04) != 0;
 
     if (keySize < 1 || start < 0 || structSize < 1 || numStructs < 0)
       fatal("Illegal argument(s) to binarysearch.");
-    
+
     while ((top - bottom) > 0)
     {
       diff = 0;
       i = bottom + ((top - bottom) / 2);
       curStart = start + (i * structSize);
-      
-      if ((options & 0x01) != 0)
+
+      if (keyIndirect)
       {
         for (int j = 0; j < keySize; j++)
         {
@@ -907,11 +984,32 @@ public final class Zag implements OpConstants
           diff = (key & 0xffff) - curKey;
           break;
         case 3:
+          //FIXME: illegal? -dmt
           curKey = (b.getInt(curStart + keyOffset) >>> 8);
           diff = (key & 0xffffff) - curKey;
+          break;
         case 4:
           curKey = b.getInt(curStart + keyOffset);
-          diff = key - curKey;
+          //fuck Java's lack of unsigned ints.
+          /*
+            a - b
+
+            if both are positive, all is good
+            if both are negative, likewise
+
+            if a is positive and b is negative, wrapping is possible
+
+            if a is negative and b is positive, wrapping is possible
+
+           */
+          int curSign = curKey & 0x80000000;
+          int keySign = key & 0x80000000;
+
+          if (curSign == keySign) {
+              diff = key - curKey;
+          } else {
+              diff = (curSign >> 1) - (keySign >> 1);
+          }
           break;
         default:
           fatal("Illegal key size for direct binarysearch.");
@@ -929,20 +1027,20 @@ public final class Zag implements OpConstants
 
     if (diff == 0)
     {
-      if ((options & 0x04) == 0)
-        return curStart;
-      else
+      if (returnIndex)
         return i;
+      else
+        return curStart;
     }
     else
     {
-      if ((options & 0x04) == 0)
-        return 0;
-      else
+      if (returnIndex)
         return -1;
+      else
+        return 0;
     }
   }
-  
+
   private final int linearSearch(int key, int keySize, int start, 
                                  int structSize, int numStructs, 
                                  int keyOffset, int options)
@@ -952,18 +1050,23 @@ public final class Zag implements OpConstants
     byte curKeyByte;
     boolean found = false;
     boolean zeroKey = false;
-    boolean zeroTerm = ((options & 0x02) != 0);
+    boolean keyIndirect = (options & 0x01) != 0;
+    boolean zeroTerm = (options & 0x02) != 0;
+    boolean returnIndex = (options & 0x04) != 0;
     FastByteBuffer b = memory;
+
+    if (numStructs == 0xffffffff) {
+        numStructs = 0x7fffffff; //make positive
+    }
 
     if (keySize < 1 || start < 0 || structSize < 1)
       fatal("Illegal argument(s) to linearseach.");
-    
 
     while (numStructs < 0 || i < numStructs)
     {
       found = true;
       zeroKey = true;
-      if ((options & 0x01) != 0)
+      if (keyIndirect)
       {
         for (int j = 0; j < keySize; j++)
         {
@@ -993,9 +1096,11 @@ public final class Zag implements OpConstants
           zeroKey = (curKey == 0);
           break;
         case 3:
+          //FIXME: illegal? - DMT
           curKey = (b.getInt(start + keyOffset) >>> 8);
           found = ((key & 0xffffff) == curKey);
           zeroKey = (curKey == 0);
+          break; //added - dmt
         case 4:
           curKey = b.getInt(start + keyOffset);
           found = (key == curKey);
@@ -1014,49 +1119,40 @@ public final class Zag implements OpConstants
 
     if (found)
     {
-      if ((options & 0x04) != 0)
+      if (returnIndex)
         return i;
       else
         return start;
     }
     else if (zeroTerm && zeroKey)
     {
-      if ((options & 0x04) != 0)
+      if (returnIndex)
         return -1;
       else
         return 0;
     }
     else
     {
-      return 0;
+      if (returnIndex)
+        return -1;
+      else
+        return 0;
     }
   }
 
   final int setMemSize(int newsize)
   {
-    FastByteBuffer newmem;
-    int origsize;
 
-    if (newsize == endmem)
-      return 0;
+      if (newsize == endmem)
+          return 0;
 
-    if ((newsize & 0xff) == 0)
-    {
-      origsize = memory.getInt(16);
-      if (newsize >= origsize)
-      {
-        newmem = new FastByteBuffer(newsize);
-        memory.position(0);
-        newmem.put(memory);
-        for (int i = memory.limit(); i < newsize; i++)
-          newmem.put((byte) 0);
-        memory = newmem;
-
-        endmem = newsize;
-        return 0;
+      FastByteBuffer newmem = memory.resize(newsize);
+      if (newmem == null) {
+          return 1;
       }
-    }
-    return 1;
+      endmem = newsize;
+      memory = newmem;
+      return 0;
   }
   
   final int gestalt(int a, int b)
@@ -1081,6 +1177,14 @@ public final class Zag implements OpConstants
       default:
         return 0;
       }
+    case 5://unicode
+        return 1;
+    case 6://memcopy
+        return 1;
+    case 7://malloc
+        return 1;
+    case 8://mallocHeap
+        return heap.getHeapStart();
     default:
       return 0;
     }
@@ -1127,7 +1231,6 @@ public final class Zag implements OpConstants
     if (sp < vp)
       fatal("while popping callstub, sp=" + sp + "; vp=" + vp);
 
-//      System.err.println("returning to " + pc);
 
     switch(dtype)
     {
@@ -1142,6 +1245,9 @@ public final class Zag implements OpConstants
       break;
     case 0x13:
       io.streamString(this, pc, 1, daddr);
+      break;
+    case 0x14:
+      io.streamString(this, pc, 3, daddr);
       break;
     default:
       storeOperand(memory, dtype, daddr, retval);
@@ -1181,7 +1287,6 @@ public final class Zag implements OpConstants
   final void enterFunction(FastByteBuffer mem, int addr, 
                            int numargs, int[] args)
   {
-//      System.err.println("entering function at " + addr);
     int ltype, lnum;
     int format, local;
     int i, j;

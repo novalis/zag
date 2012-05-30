@@ -119,7 +119,12 @@ public abstract class Window implements MouseListener, Comparable
       curStyle = style;
   }
 
-  protected void putChar(char c)
+  protected void putChar(int c)
+  {
+    // NOOP
+  }
+
+  protected void putCharUni(int c)
   {
     // NOOP
   }

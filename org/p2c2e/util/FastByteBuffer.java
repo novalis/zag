@@ -10,6 +10,7 @@ public final class FastByteBuffer
   private int position;
   private int limit;
   private int capacity;
+  private int minSize;
 
   public FastByteBuffer(int cap)
   {
@@ -19,6 +20,10 @@ public final class FastByteBuffer
     position = 0;
   }
   
+  public void setMinSize(int minSize) {
+    this.minSize = minSize;
+  }
+
   public int take(InputStream in) throws IOException
   {
     int r;
@@ -207,6 +212,31 @@ public final class FastByteBuffer
   {
     position = 0;
     limit = capacity;
+  }
+
+  public FastByteBuffer resize(int newsize) {
+    if (newsize < minSize) {
+        return null;
+    }
+
+    int origsize = limit;
+
+    if ((newsize & 0xff) != 0) {
+        return null;
+    }
+    if (newsize < capacity()) {
+        limit(newsize);
+        return this;
+    }
+
+    FastByteBuffer newmem = new FastByteBuffer(newsize);
+    newmem.setMinSize(minSize);
+    position(0);
+    newmem.put(this);
+    for (int i = limit(); i < newsize; i++)
+        newmem.put((byte) 0);
+
+    return newmem;
   }
 
   public ByteBuffer asByteBuffer()

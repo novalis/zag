@@ -32,6 +32,7 @@ public abstract class Glk
   public static final int GESTALT_HYPERLINK_INPUT = 12;
   public static final int GESTALT_SOUND_MUSIC = 13;
   public static final int GESTALT_GRAPHICS_TRANSPARENCY = 14;
+  public static final int GESTALT_UNICODE = 15;
 
   public static final int EVTYPE_NONE = 0;
   public static final int EVTYPE_TIMER = 1;
@@ -648,7 +649,15 @@ public abstract class Glk
     if (CURRENT_STREAM == null)
       nullRef("Glk.putChar");
     else
-      CURRENT_STREAM.putChar(((int) ch) & 0xffff);
+      CURRENT_STREAM.putChar(ch);
+  }
+
+  public static void putCharUni(int ch)
+  {
+    if (CURRENT_STREAM == null)
+      nullRef("Glk.putCharUni");
+    else
+        CURRENT_STREAM.putCharUni(ch);
   }
 
   public static void putString(String s)
@@ -659,6 +668,14 @@ public abstract class Glk
       CURRENT_STREAM.putString(s);
   }
 
+  public static void putStringUni(String s)
+  {
+    if (CURRENT_STREAM == null)
+      nullRef("Glk.putStringUni");
+    else
+      CURRENT_STREAM.putStringUni(s);
+  }
+
   public static void putBuffer(InByteBuffer b, int len)
   {
     if (CURRENT_STREAM == null)
@@ -667,12 +684,27 @@ public abstract class Glk
       CURRENT_STREAM.putBuffer(b.buffer, len);
   }
 
+  public static void putBufferUni(InByteBuffer b, int len)
+  {
+    if (CURRENT_STREAM == null)
+      nullRef("Glk.putBufferUni");
+    else
+      CURRENT_STREAM.putBufferUni(b.buffer, len);
+  }
+
   public static void putCharStream(Stream s, int ch)
   {
     if (s == null)
       nullRef("Glk.putCharStream");
     else
       s.putChar(ch);
+  }
+  public static void putCharStreamUni(Stream s, int ch)
+  {
+    if (s == null)
+      nullRef("Glk.putCharStreamUni");
+    else
+      s.putCharUni(ch);
   }
 
   public static void putStringStream(Stream stm, String s)
@@ -683,6 +715,14 @@ public abstract class Glk
       stm.putString(s);
   }
 
+  public static void putStringStreamUni(Stream stm, String s)
+  {
+    if (stm == null)
+      nullRef("Glk.putStringStreamUni");
+    else
+      stm.putStringUni(s);
+  }
+
   public static void putBufferStream(Stream s, InByteBuffer b, int len)
   {
     if (s == null)
@@ -691,12 +731,29 @@ public abstract class Glk
       s.putBuffer(b.buffer, len);
   }
 
+  public static void putBufferStreamUni(Stream s, InByteBuffer b, int len)
+  {
+    if (s == null)
+      nullRef("Glk.putBufferStreamUni");
+    else
+      s.putBufferUni(b.buffer, len);
+  }
+
   public static int getCharStream(Stream s)
   {
     if (s != null)
       return s.getChar();
 
     nullRef("Glk.getCharStream");
+    return -1;
+  }
+
+  public static int getCharStreamUni(Stream s)
+  {
+    if (s != null)
+      return s.getCharUni();
+
+    nullRef("Glk.getCharStreamUni");
     return -1;
   }
 
@@ -709,12 +766,30 @@ public abstract class Glk
     return -1;
   }
 
+  public static int getBufferStreamUni(Stream s, OutByteBuffer b, int len)
+  {
+    if (s != null)
+      return s.getBufferUni(b.buffer, len);
+
+    nullRef("Glk.getBufferStreamUni");
+    return -1;
+  }
+
   public static int getLineStream(Stream s, OutByteBuffer b, int len)
   {
     if (s != null)
       return s.getLine(b.buffer, len);
 
     nullRef("Glk.getLineStream");
+    return -1;
+  }
+
+  public static int getLineStreamUni(Stream s, OutByteBuffer b, int len)
+  {
+    if (s != null)
+      return s.getLineUni(b.buffer, len);
+
+    nullRef("Glk.getLineStreamUni");
     return -1;
   }
 
@@ -771,6 +846,17 @@ public abstract class Glk
     return s;
   }
 
+  public static Stream streamOpenMemoryUni(InOutByteBuffer b, 
+                                        int len, int mode, int rock)
+  {
+    Stream s = new Stream.UnicodeMemoryStream(b.buffer, len, mode);
+
+    STREAMS.put(s, new Integer(rock));
+    if (CREATE_CALLBACK != null)
+      CREATE_CALLBACK.callback(s);
+    return s;
+  }
+
   public static Stream streamOpenFile(Fileref ref, int mode, int rock)
   {
     if (ref == null)
@@ -779,13 +865,30 @@ public abstract class Glk
       return null;
     }
 
-    Stream s = new Stream.FileStream(ref, mode);
+    Stream s = new Stream.FileStream(ref, mode, false);
 
     STREAMS.put(s, new Integer(rock));
     if (CREATE_CALLBACK != null)
       CREATE_CALLBACK.callback(s);
     return s;
   }
+
+  public static Stream streamOpenFileUni(Fileref ref, int mode, int rock)
+  {
+    if (ref == null)
+    {
+      nullRef("Glk.streamOpenFileUni");
+      return null;
+    }
+
+    Stream s = new Stream.FileStream(ref, mode, true);
+
+    STREAMS.put(s, new Integer(rock));
+    if (CREATE_CALLBACK != null)
+      CREATE_CALLBACK.callback(s);
+    return s;
+  }
+
 
   public static int streamGetRock(Stream s)
   {
@@ -1155,13 +1258,23 @@ public abstract class Glk
       return 1;
     case GESTALT_HYPERLINKS:
       return 1;
-
+    case GESTALT_UNICODE:
+      return 1;
     default:
       return 0;
     }    
   }
 
   public static void requestCharEvent(Window win)
+  {
+    if (win == null)
+      nullRef("Glk.requestCharEvent");
+    else
+      win.requestCharacterInput(new GlkCharConsumer(win));
+  }
+
+  /* TODO: test this */
+  public static void requestCharEventUni(Window win)
   {
     if (win == null)
       nullRef("Glk.requestCharEvent");
@@ -1195,7 +1308,30 @@ public abstract class Glk
         sb.append((char) b.buffer.get(i));
       s = sb.toString();
     }
-    win.requestLineInput(new GlkLineConsumer(win, b.buffer), s, maxlen);
+    win.requestLineInput(new GlkLineConsumer(win, b.buffer, false), s, maxlen);
+  }
+
+  public static void requestLineEventUni(Window win, InOutByteBuffer b, 
+                                         int maxlen, int initlen)
+  {
+    if (win == null)
+    {
+      nullRef("Glk.requestLineEventUni");
+      return;
+    }
+
+    StringBuffer sb;
+    String s = null;
+    if (initlen > 0)
+    {
+      sb = new StringBuffer();
+      for (int i = 0; i < initlen; i ++) {
+          int t = b.buffer.getInt(i * 4);
+          sb.appendCodePoint(t);
+      }
+      s = sb.toString();
+    }
+    win.requestLineInput(new GlkLineConsumer(win, b.buffer, true), s, maxlen);
   }
 
   public static void cancelLineEvent(Window win, GlkEvent e)
@@ -1744,11 +1880,13 @@ public abstract class Glk
   {
     Window w;
     ByteBuffer b;
+    boolean unicode;
 
-    GlkLineConsumer(Window win, ByteBuffer buf)
+    GlkLineConsumer(Window win, ByteBuffer buf, boolean unicode)
     {
       w = win;
       b = buf;
+      this.unicode = unicode;
     }
 
     public void consume(String s)
@@ -1765,8 +1903,14 @@ public abstract class Glk
     public void cancel(String s)
     {
       int l = s.length();
-      for (int i = 0; i < l; i++)
-        b.put(i, (byte) s.charAt(i));
+      if (unicode) {
+          //fixme does not handle astral plane
+          for (int i = 0; i < l; i++)
+              b.putInt(i*4, s.charAt(i));
+      } else {
+          for (int i = 0; i < l; i++)
+              b.put(i, (byte) s.charAt(i));
+      }
     }
   }
 

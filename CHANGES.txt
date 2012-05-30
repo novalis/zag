@@ -1,3 +1,25 @@
+[Since 1.06]
+30 May 2012
+
+1. David Turner made these following changes, and is solely
+responsible for any errors.
+
+2. Support for unicode (glulx 3.0.0).  Astral plane support
+is a bit spotty still.
+
+3. Support for heap memory allocation and block memory operations
+(glulx 3.1.0)
+
+4. Stubs for accelfunc and accelparam (glulx 3.1.1)
+
+5. Misc bug fixes in search, bit shifting, undoing past terp restarts,
+filtering while streaming numbers, copyb/copys.  
+
+glulxercise.ulx now passes, mostly because it doesn't
+actually check that accelfunc and accelparam actually work,
+and because the floating point tests pass when zag correctly
+says it doesn't support floating point.
+
 [Since 1.05]
 18 March 2005
 

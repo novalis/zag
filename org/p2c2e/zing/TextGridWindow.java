@@ -171,7 +171,7 @@ public class TextGridWindow extends Window
   }
 
   // This will be called by the window stream
-  protected void putChar(char c)
+  protected void putChar(int c)
   {
     if (c == '\n' && y < rows)
     {
@@ -194,6 +194,10 @@ public class TextGridWindow extends Window
         }
       }
     }
+  }
+
+  public void putCharUni(int c) {
+      putChar(c);
   }
 
   // If this is being called, then size represents a fixed size (i.e., 
@@ -470,7 +474,7 @@ public class TextGridWindow extends Window
 
     end = (y == iLineInputStartY) ? x : cols;
     for (int i = iLineInputStartX; i < end; i++)
-      sb.append(grid[iLineInputStartY][i].c);
+      sb.appendCodePoint(grid[iLineInputStartY][i].c);
 
     s = sb.toString();
     lic.cancel(s);
@@ -521,7 +525,7 @@ public class TextGridWindow extends Window
         putChar('\n');
 
         for (int i = iLineInputStartX; i < end; i++)
-          sb.append(grid[iLineInputStartY][i].c);
+          sb.appendCodePoint(grid[iLineInputStartY][i].c);
 
         ls.consume(sb.toString());
         if (echo != null)
@@ -627,7 +631,7 @@ public class TextGridWindow extends Window
             wasDirty = true;
             sb.setLength(0);
             for (int k = 0; k < cols; k++)
-              sb.append(grid[i][k].c);
+              sb.appendCodePoint(grid[i][k].c);
 
             as = new AttributedString(sb.substring(0, sb.length()));
             j = mark = 0;
@@ -669,11 +673,11 @@ public class TextGridWindow extends Window
 
   static class Square
   {
-    char c;
+    int c;
     Style s;
     int hyper;
     
-    Square(char c, Style s, int h)
+    Square(int c, Style s, int h)
     {
       this.c = c;
       this.s = s;

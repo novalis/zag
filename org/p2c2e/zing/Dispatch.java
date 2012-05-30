@@ -5,7 +5,7 @@ import java.util.*;
 
 public abstract class Dispatch
 {
-  static Method[] METHODS = new Method[260];
+  static Method[] METHODS = new Method[322];
 
   public static Method getMethod(int selector)
   {
@@ -14,7 +14,7 @@ public abstract class Dispatch
 
   static
   {
-    String[] NAMES = new String[260];
+    String[] NAMES = new String[322];
 
     NAMES[0x0001] = "exit";
     NAMES[0x0002] = "setInterruptHandler";
@@ -102,6 +102,25 @@ public abstract class Dispatch
     NAMES[0x0101] = "setHyperlinkStream";
     NAMES[0x0102] = "requestHyperlinkEvent";
     NAMES[0x0103] = "cancelHyperlinkEvent";
+
+    NAMES[0x0120] = "bufferToLowerCaseUni";
+    NAMES[0x0121] = "bufferToUpperCaseUni";
+    NAMES[0x0122] = "bufferToTitleCaseUni";
+    NAMES[0x0128] = "putCharUni";
+    NAMES[0x0129] = "putStringUni";
+    NAMES[0x012A] = "putBufferUni";
+    NAMES[0x012B] = "putCharStreamUni";
+    NAMES[0x012C] = "putStringStreamUni";
+    NAMES[0x012D] = "putBufferStreamUni";
+    NAMES[0x0130] = "getCharStreamUni";
+    NAMES[0x0131] = "getBufferStreamUni";
+    NAMES[0x0132] = "getLineStreamUni";
+    NAMES[0x0138] = "streamOpenFileUni";
+    NAMES[0x0139] = "streamOpenMemoryUni";
+    NAMES[0x0140] = "requestCharEventUni";
+    NAMES[0x0141] = "requestLineEventUni";
+
+
 
 
     Method[] members = Glk.class.getMethods();
