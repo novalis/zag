@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jnlp spec="1.0+" codebase="http://wso.williams.edu/~jon/zag/">
+<information>
+        <title>Zag</title>
+        <vendor>Jon Zeppieri</vendor>
+        <homepage href="http://mirror.ifarchive.org/indexes/if-archiveXprogrammingXglulxXinterpretersXzag.html" />
+        <description>Glulx 2.0.0 for Java</description>
+</information>
+<offline-allowed/>
+<security>
+        <all-permissions/>
+</security>
+<resources>
+        <j2se version="1.4+"/>
+        <jar href="zag-1.05.jar"/>
+</resources>
+<application-desc main-class="org.p2c2e.zag.Main" />
+</jnlp>
+

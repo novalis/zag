@@ -1,0 +1,465 @@
+[Since 1.05]
+18 March 2005
+
+1. AIFF sound no longer uses the Java Sound Clip interface, since
+we've run into AIFFs that are too long for the Clip's buffer.  We're
+now playing AIFFs as streams, which we should have been doing from the
+start.
+
+2. Changes to Micromod's JavaSoundOutput class, so that upon close, we
+flush the buffer first.  This eliminates some delay on the Macintosh.
+
+3. Similar change to (2) but for AIFFs in SoundChannel.java.
+
+
+[Since 1.04]
+20 March 2004
+
+1. Made the memory protection range work properly...I think.
+
+2. TextGridWindow.clear() now resets x,y = 0, as per spec.  This fixes
+a problem Zag had with the status window in "Pytho's Mask."
+
+
+7 June 2004
+
+1. Fixed the problem where a graphic artifact appears on the screen when 
+you first begin to type at a cursor.
+
+2. Optimized the drawing when you simply move the cursor along a line of 
+text (by, e.g., using the arrow keys).  Rather than redrawing the screen,
+we now only redraw the text.
+
+
+8 June 2004
+
+1. Changed how Style.java checks to see if a font is monospaced.  It
+wasn't working on Linux beforehand.
+
+2. Slight drawing optimizations in TextGridWindow, GraphicsWindow, and
+TextBufferWindow.
+
+3. Fixed the drawing of the cursor in TextGridWindows (when line input is
+active), which I broke in an earlier release.
+
+4. Gave the TextGridWindow better margins.  Unfortunately, this causes
+Lock & Key's grid window to be too small to contain its text, using the 
+default 14pt font (at least, on my Mac).  (Oh well:  In l-k-notes.txt, 
+Adam suggests changing to a small font and using the REFRESH verb,
+which works fine.)
+
+
+9 June 2004
+
+1. Made Zag take Winglulxe .cfg files more seriously.  Previously,
+.cfg settings would override Zag's defaults, but they would not
+override saved user preferences.  In other words, any user who had
+changed the default styles at all would never see the font faces or
+sizes specified by the .cfg file.  Now, these .cfg settings override
+the user's settings.  [This is a questionable practice...]
+
+2. Turned on underlining for hyperlinks.  Using
+UNDERLINE_LOW_ONE_PIXEL, which looks infinitely better than
+UNDERLINE_ON.
+
+3. Made hyperlinks keep their distinctive appearance even when the
+user edits style preferences.
+
+4. Fixed two problems with hyperlinks in TextBufferWindows: (a) the
+hit testing algorithm was not taking into account the left margin, and
+(b) we were listening for mouse traffic on the scroll pane, not on the
+view -- so the y-coordinates were all wrong.
+
+
+[Since 1.03]
+4-5 February 2004
+
+1. Now using the FIRResampler in MicroMod, since it doesn't produce
+awful static in Zetaspace Demo, unlike the LinearResampler.
+
+2. Got rid of gross Thread.sleep(20) in SoundChannel, replacing it
+with a Thread.yield().  Also got rid of a superfluous synchronization.
+
+3. Using graphics device compatible images in GraphicsWindow.
+
+4. Previously, Zing would fire a sound completion event for a MOD,
+even if it had explicitly been stopped.  This behavior violates the
+Glk spec and is now fixed.
+
+5. Zing windows now have their preferredSizes set by their pair
+windows (or, in the case of the root window, by static code).  For
+some reason, this solves an annoying sizing bug, which manifests
+itself in Java 1.5 on Linux.  (In Photopia 2001, there would be a
+white stripe new the bottom of the frame, when the background was
+supposed to be all black.)
+
+6. Line input is now printed to echo streams.
+
+7. Streams are now closed (and flushed) when the glulx program
+controlling them exits.
+
+8. If a PairWindow is closed, its children's streams are now closed.
+
+9. If a PairWindow is closed, its children and their streams are
+destroyed.
+
+
+[Since 1.02]
+9 January 2004
+
+1. The change I requested to Adam Cadre's "Narcolepsy" revealed a
+minor (but ugly) problem with Zing's GraphicsWindows.  They were not
+painting their backgrounds.  Now they do.
+
+2. Bugfix to Glk.select(): Eliminiated a race condition, which could
+cause a crash when timer events are turned on.
+
+3. Obtained a Thawte certificate, which allows Java WebStart to stop
+saying that it strongly recommends not running Zag.
+
+
+11 January 2004
+
+1. TextBufferWindow.scrollDown() is now always called in the Swing
+event thread, which eliminiates a long-standing race condition in the
+code.
+
+2. When I fixed the layout bug in version 1.02, I introduced a new
+bug, where margin images would no longer be displayed.  This has been
+fixed.
+
+3. Made TextBufferWindow's getSplit() method take into consideration
+the 5 pixel top margin.
+
+4. Gave the TextGridWindow a 5 pixel top margin, so the top line is no
+longer smushed against the top of the window.
+
+
+12 January 2004
+
+1. Became trusted in the Thawte Web of Trust, which means that the
+digital certificate I use to sign Zag now bears my name, and my
+identity is vouched for by Thawte.
+
+2. A change to #1 from yesterday: often resizeView() was already
+called from the Swing event handling thread.  resizeView(), in turn,
+calls scrollDown().  Since I (yesterday) wrapped the latter call in a
+SwingUtilities.invokeLater(), it was often being deferred until *too
+late*.  So, I undid the change to scrollDown() and instead ensured
+that calls to TextBufferWindow.doLayout() (called from Glk.java) occur
+in the event thread.  This fixes a couple of bugs I introduced
+yesterday.
+
+3. Restored the downloading progress bar to undecorated windows.
+
+
+16 January 2004
+
+1. Regression: realized that Zetaspace Demo had a problem on OS X.
+The space-flight navigation animation wasn't working properly (though
+it was working on Linux and Windows).  Made a change to fix the
+problem on the Mac.  Still works on other platforms, but the animation
+is slower now.  (Really, this is Apple's bug, not mine, but what can I
+do?)
+
+
+2 February 2004
+
+More excellent bug reports from Joonas.
+
+1. Fixed a few issues with string handling.  Type 3 Huffman nodes
+(C-string nodes) were not working properly, for two reasons.  First, I
+was decoding those nodes incorrectly.  Second, I was missing an small
+but important bit of the insanely complex compressed-string printing
+algorithm.
+
+2. Zag's ability to handle changes to Huffman tables stored in RAM was
+faulty.  Specifically, Zag assumed that the address of the tree root
+would remain constan.  Now, it doesn't.
+
+
+[Since 1.01]
+30 September 2003
+
+Another round of excellent bug reports by M. Joonas Pihlaja.
+
+1. The BufferedImage in TextGridWindow must have length and width > 0.
+(tetris.ulx was crashing).
+
+2. In Style.java:  changed default styles a bit.  This will not affect
+users who have used previous versions of Zag and who have saved style
+preferences.
+
+3. The menu option "End session" no longer sends "quit\n" to the
+program.  After all, this will only work on English games that happen
+to be requesting line input.  Rather, it now just forcibly quits the
+running glulx program.
+
+4. Attempt to optimize TextBufferWindow.doLayout()
+
+
+6-7 January 2004
+
+First time I've worked on Zag in awhile...
+
+1. Fixed an important layout bug in TextBufferWindow, discovered some
+time ago by M. Joonas Pihlaja.  If line input were requested on a
+TextBufferWindow and if the cursor were positioned at the very start
+of the line (i.e., sans prompt), the cursor would display at the end
+of the previous line.  This is now fixed.
+
+2. Fixed Glk.setWindow(), after a spec. clarification from Andrew Plotkin.
+
+3. Invalid GLK object references no longer (necessarily) crash the
+program.  By default, warnings are issued instead.
+
+
+[Since 1.0]
+9 September 2003
+
+1. Fixed a bug in the handling of the protect opcode.  I was treating
+the second operand as a "store" operand, rather than a "load."
+
+2. Blank windows can now be split.  (Between the previous fix and this
+one, "Words of Power" will run now, though Zag will not play its
+music--which is in XM format, so this is not a bug in Zag; it's a bug
+in "Words.")
+
+3. (Thanks to Zak.) Fixed background color preferences.  I was saving
+the preference with the name "back-color" and attempting to read it
+back as "background-color."
+
+4. (Thanks again to Zak.) Fixed TextBufferWindow.java so that the
+background color of the "normal" style is used as the window
+background color.
+
+
+[Since the fourth beta release]
+14 August 2003
+
+1. Fixed multi-line input for buffer windows.  (Actually input worked
+just fine, but display of that input did not.)
+
+2. Again, fixed slow buffer window line input in Photopia 200x (which,
+apparently, I broke when I fixed multi-line input)...  Somehow this
+branch got out of sync with a (most likely) abortive branch I started.
+
+3. Made a few more Glk functions take a fast path through the glk
+opcode function.  I don't notice any difference in speed.
+
+4. jar file is now zag-1.0.  No "b" for beta anymore, since the next
+release will be 1.0.
+
+5. README.txt updated to reflect current state of Zag.
+
+
+18 August 2003
+
+1. Fixed bug in meta-backspace keybinding, which must have existed
+from the start...
+
+
+[Since the third beta release]
+7 August 2003
+
+A slew of *great* bug reports from M. Joonas Pihlaja (who clearly wins
+the beta testing competition, whatever Jessica Knoch says).  He
+actually has a suite of programs for testing Glulx implementations.
+Brilliant.  All of these fixes are prompted by his testing.
+
+1. Fixed an automatic type promotion bug in IO.java, when checking the
+type of a string to send to a GLK function.  An int comparison was
+taking place, so the type byte (0xe0) was being promoted to an int,
+with sign-extension, causing it to be negative.  So the comparison
+failed, when it should have succeeded.
+
+2. Fixed line input in grid windows.  This worked a long time ago, and
+then I broke it...  Now it works again, although output can be
+annoyingly slow.  I'll have to look into speeding that up.
+
+3. Fixed Glk.selectPoll().  It had two obvious (and obviously stupid)
+control flow problems.
+
+4. Fixed Zag.storeShortOperand() and Zag.storeByteOperand() (perhaps
+not so aptly named).  They were sign extending data when pushing it
+onto the stack, which is against spec.  This caused tetris.ulx to crash.
+
+[Oh, actually, these two bugs I discovered on my own.]
+
+5. Fixed a "bug" in Zag.enterFunction().  Not really a bug; I just
+applied a strength-reduction optimization.
+
+6. Fixed a bug in copyb, where I was doing something obviously stupid.
+
+[Now enhancements, suggested by M. Joonas Pihlaja]
+
+7. Screen is not cleared anymore when a glulx program exits (but Zag
+keeps going).
+
+8. The file chooser starts in the current working directory, instead
+of the user's home directory.  It also filters, so only directories,
+.ulx, and .blb files are displayed by default.
+
+
+11 August 2003
+
+1. When glulx progam exits, it says so on the status bar: 
+[*** End of Session ***], like Infocom used to say...
+
+2. Style hints are cleared before a new glulx program starts.
+
+3. Line input in grid windows has been optimized.
+
+
+12 August 2003
+
+1. Infinite UNDO added.
+
+
+13 August 2003
+
+1. SONG support added.
+
+2. Fixed a problem with grid window display, instroduced by the
+optimizations I added recently.
+
+3. Infinite UNDO uses a single file now, rather than a whole mess of
+them.
+
+4. Grid windows explicitly buffer their drawing now (like graphics
+windows).  Had to do this to resolve a serious drawing problem on
+Linux. 
+
+5. Closing the Zag window now actually exits the program.  (It used to
+leave you in limbo.)
+
+
+[Since the second beta release]
+1 August 2003
+
+1. Implemented WinGlulxe's configuration file support.  Can specify
+whether the frame should be decorated, whether windows should have
+borders, the initial size of the frame, and so forth.  Did not
+implement "WindowMask", since Java frames cannot be transparent.
+Supposedly, this will change in 1.5.
+
+2. Undecorated frames pose a problem:  where do we put the "[More]"
+prompt, for paging?  Some interpreters put it directly in the text.  I
+put it on a status bar at the bottom of the frame.  An undecorated
+frame, of course, has no status bar.  I probably should just have
+omitted it altogether.  In fact, I just noticed that Andrew Plotkin's
+MacGlulxe (at least, the Carbonized version) doesn't show a "[More]"
+prompt, ever.  And I didn't miss it.  However, I decided to do
+something tricky and possibly bad.  I display a somewhat largish
+prompt in the bottom left hand corner of the frame.  But since the
+prompt may be obscuring something important (I have no idea what I'm
+painting over), I fade the prompt after a few seconds.  It disappears
+altogether about seven or eight seconds after appearing.  Probably
+unnecessary...
+
+3. Got rid of the "[Press any key to exit]" stage when quitting.
+Didn't see the point, but I can be persuaded otherwise.
+
+4. If a program is launched with a configuration file, exiting the
+program quits Zag altogether.  After all, the configuartion is
+tailored specifically for the one program.
+
+5. Some painting optimization in TextBufferWindow.  Line input isn't
+nearly so sluggish now on Mac OS X (it never was on Linux,
+interestingly).
+
+6. Fixed the meta-backspace so that it works on linux.  Don't really
+know why it didn't work before-- seems like Java doesn't understand
+the X keyboard map, or something.  So, now mhy code allows Alt, in
+addition to Meta.
+
+7. Changed non character keys to use keyPressed() event handler,
+rather than keyReleased().  This allows repeating by holding down the
+key.  (E.g., arrow keys.)
+
+8. Few changes to Zag.parseOperands().  Streamlined it a bit and fixed
+a bit-masking bug which hadn't yet manifested itself anywhere.
+
+9. Made glulx memory and stack into indirect ByteBuffers.  They were
+direct, which seems...silly.  In fact, it seems silly that they are
+ByteBuffers instead of byte arrays.  The latter surely have better
+access times; the former are more convenient for many tasks, however.
+
+
+2 August 2003
+
+1. Added a menu option (under Edit) to use or to ignore style hints.
+
+2. Hide the progress bar when not in use.  This saves gobs of CPU time
+on OS X.
+
+3. Eliminated a loop in Zag.parseOperands().  Should be marginally faster.
+
+4. [see # 9, 1 August 2003] Replaced heavy use of ByteBuffers with my
+own class, FastByteBuffer, which is basically a thin wrapper around a
+byte[], with useful accessors.  It's much faster.
+
+5. Frame should now remember its location and size from the previous
+time Zag was run.
+
+6. Fixed a bug on Linux, where the scrollbar could gain focus and
+never give it up.
+
+
+[Since the first beta release]
+
+29 July 2003
+
+Fixed display of accented characters (bugs casting between bytes,
+ints, and chars).  [Thanks to Eric Forgeot.]
+
+
+30 July 2003
+
+1. Fixed style hinting for justification; was using wrong constants.
+[Thanks to Eric Forgeot.]
+
+2. Fixed character input to use Glk keycodes wherever possible.
+
+3. Fixed TextBufferWindow.resizeView() to ensure that the height of
+the view is always at least the height of the viewport.
+
+4. Ripped out ana-mp and replaced it with MicroMod, by Martin Cameron
+[http://website.lineone.net/~martin.cameron/].  I think it is rather
+better than ana-mp.  I needed to make two minor modifications to
+Martin's code, one to allow setting the volume, and another to allow
+an odd number of channels.  Both were trivial changes.
+
+5. Now using com.sixlegs.image.png code to decode PNG images, since
+Java's built-in support for PNGs is incomplete.  If and when Sun
+corrects this, I will remove this code.
+
+6. Documentation changes to README.txt.  Added license directory and
+put licenses there, along with README-license.txt.
+
+7. Implemented some Emacs key bindings for line input in
+TextBufferWindow;  now you can ctrl-arrow to go forward or backward
+one word, and you can meta-backspace to erase the previous word.
+Also, ctrl-a will position the cursor at the start of input, and
+ctrl-e will position it at the end.
+
+8. Buffered Stream.FileStream.  Now it's pretty hairy code,
+unfortunately, because it has to be able to read and write.  It worked
+on my limited tests, but I'm more concerned about the correctness of
+this code than any other.
+
+9. Buffered reads from the game file during saves and restores.
+Between this and the last change, saving and restoring is much faster
+now.
+
+
+31 July 2003
+
+1. Converted ArrayLists in TextBufferWindow to LinkedLists...which
+just makes far more sense and conserves memory.
+
+2. Changed the image cache in Glk.java to be a LIFO data structure
+with a fixed size.  No more running out of memory from caching images
+(in, for instance, Zeta Space).  I'm convinced that the new PNG
+decoder uses far more memory than the native Java one.  Too bad the
+latter doesn't work properly.

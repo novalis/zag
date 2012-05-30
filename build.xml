@@ -1,0 +1,49 @@
+<project name="zag" default="all" basedir=".">
+<description>
+	An implementation of glulx v.2.0.0 for Java
+</description>
+
+<property name="version" value="1.06"/>
+<property name="packages" value="micromod, micromod.output, micromod.resamplers, micromod.output.converters, com.sixlegs.image.png, org.p2c2e.util, org.p2c2e.blorb, org.p2c2e.zing, org.p2c2e.zag"/>
+<property name="src" location="${basedir}"/>
+<property name="bin" location="${basedir}/bin"/>
+<property name="jdoc" location="${basedir}/doc"/>
+<property name="jarName" value="zag-${version}.jar"/>
+<property name="manifest" location="${src}/MANIFEST.txt"/>
+
+<target name="all" description="compile, create javadoc and .jar file" depends="init, jar, compile, jdoc"/>
+
+<!-- initialization-->
+
+<target name="init"/>
+
+<!-- jaring -->
+
+<target name="jar" description="create a jar file from the class files" depends="init, compile">
+	<jar destfile="${jarName}" basedir="${bin}" manifest="${manifest}"/>
+</target>
+
+<!-- compiling -->
+
+<target name="compile" description="compile the sources" depends="init">
+	<javac srcdir="${src}" destdir="${bin}" classpath="${basedir}" debug="on"/>
+</target>
+
+<!-- javaDoc -->
+
+<target name="jdoc" description="create javadoc" depends="init">
+	<javadoc sourcepath="${src}" classpath="${bin}" destdir="${jdoc}" packagenames="${packages}"/>
+</target>
+
+<!-- cleanup -->
+
+<target name="clean" description="delete jar file, class files and javadoc" depends="init">
+	<delete file="${jarName}"/>
+	<delete>
+		<fileset dir="${basedir}" defaultexcludes="no" includes="**/*.*~"/>
+		<fileset dir="${bin}" includes="**/*"/>
+		<fileset dir="${jdoc}" includes="**/*"/>
+	</delete>
+</target>
+
+</project>

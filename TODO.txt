@@ -1,0 +1,24 @@
+- Should limit the size of the buffer in TextBufferWindow.  It's
+pretty memory intensive; lot of layout objects.
+
+- Performance, particularly on Mac OS X.  (Of course, Apple should do
+something about their abyssmal Java performance, in general.)
+
+          - Profiling suggets that the machine wastes a lot of time
+          decoding operands.  I use the same algorithm Andrew P. does
+          now.  Maybe a JIT?  (That's a lot of work...)
+
+          - As for zing performance, that's even tougher.  Can
+          probably instantiate fewer objects, keep the GC at bay.
+          Can implement faster layout just for line input in
+          TextBufferWindow.  
+
+- There should be a way to specify a single font for all buffer window
+styles and one for all grid window styles.
+
+- Should implement the Unicode extension
+
+? Macros, like in Andrew Plotkin's interpreters
+
+? Cut, copy, and paste:  big pain to implement, and I don't use it...
+
