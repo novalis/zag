@@ -3,6 +3,7 @@ package org.p2c2e.zag;
 import java.io.*;
 import java.lang.System;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Random;
 import org.p2c2e.util.FastByteBuffer;
 import org.p2c2e.zing.Glk;
@@ -42,6 +43,19 @@ public final class Zag implements OpConstants
   Random rand = new Random();
 
   Heap heap;
+
+  HashMap accelTable = new HashMap();
+
+    /* accel params  */
+    int classes_table;
+    int indiv_prop_start;
+    int class_metaclass;
+    int object_metaclass;
+    int routine_metaclass;
+    int string_metaclass;
+    int self;
+    int num_attr_bytes;
+    int cpv_start;
 
   public Zag(File gf, int iStart) throws IOException
   {
@@ -693,7 +707,7 @@ public final class Zag implements OpConstants
         enterFunction(mem, values[0], 3, funargs);
         break;
       case GETMEMSIZE:
-        storeOperand(mem, modes[0], values[0], memory.limit());
+        storeOperand(mem, modes[0], values[0], getMemSize());
         break;
       case SETMEMSIZE:
         if (heap.isActive()) {
@@ -805,8 +819,53 @@ public final class Zag implements OpConstants
       case MFREE:
           heap.free(values[0]);
           break;
+      case ACCELFUNC:
+          accel(values[0], values[1]);
+          break;
+      case ACCELPARAM:
+          int index = values[0];
+          val = values[1];
+          switch (index) {
+          case 0: classes_table = val; break;
+          case 1: indiv_prop_start = val; break;
+          case 2: class_metaclass = val; break;
+          case 3: object_metaclass = val; break;
+          case 4: routine_metaclass = val; break;
+          case 5: string_metaclass = val; break;
+          case 6: self = val; break;
+          case 7: num_attr_bytes = val; break;
+          case 8: cpv_start = val; break;
+          }
+          break;
       }
     }
+  }
+
+  void accel(int number, int addr) {
+      switch(number) {
+      case 0:
+          accelTable.remove(addr);
+          break;
+      case 1:
+          accelTable.put(addr, new Func1ZRegion(this));
+          break;
+      case 2:
+          accelTable.put(addr, new Func2CPTab(this));
+          break;
+      case 3:
+          accelTable.put(addr, new Func3RAPr(this));
+          break;
+      case 4:
+          accelTable.put(addr, new Func4RLPr(this));
+          break;
+      case 5:
+          accelTable.put(addr, new Func5OCCl(this));
+          break;
+      }
+  }
+
+  int getMemSize() {
+    return memory.limit();
   }
 
   int verify(boolean progress)
@@ -937,7 +996,7 @@ public final class Zag implements OpConstants
   }
 
 
-  private final int binarySearch(int key, int keySize, int start, 
+  public final int binarySearch(int key, int keySize, int start, 
                                  int structSize, int numStructs, 
                                  int keyOffset, int options)
   {
@@ -1185,6 +1244,10 @@ public final class Zag implements OpConstants
         return 1;
     case 8://mallocHeap
         return heap.getHeapStart();
+    case 9:
+        return 1;
+    case 10:
+        return (b >= 1 && b <= 7) ? 1 : 0;
     default:
       return 0;
     }
@@ -1287,6 +1350,14 @@ public final class Zag implements OpConstants
   final void enterFunction(FastByteBuffer mem, int addr, 
                            int numargs, int[] args)
   {
+
+    AcceleratedFunction func = (AcceleratedFunction) accelTable.get(addr);
+    if (func != null) {
+        int retval = func.enterFunction(numargs, args);
+        popCallstub(retval);
+        return;
+    }
+
     int ltype, lnum;
     int format, local;
     int i, j;
@@ -1301,9 +1372,9 @@ public final class Zag implements OpConstants
         fatal("Attempt to call non-function.");
     }
 
-
     fp = sp;
 
+    //figure out the length of the locals
     i = 0;
     while (true)
     {
@@ -1353,6 +1424,7 @@ public final class Zag implements OpConstants
     for (j = 0; j < len; j++)
       stack.put(lp + j, (byte) 0);
     
+    //put locals on stack according to function's format
     if (funtype == 0xc0)
     {
       for (j = numargs - 1; j >=0; j--)
