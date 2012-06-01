@@ -2,7 +2,7 @@ package org.p2c2e.zag;
 
 final class Op implements OpConstants
 {
-  static final Op[] OPS = new Op[0x1C9];
+  static final Op[] OPS = new Op[0x1CA];
 
   int arity;
   int[] format;
@@ -103,6 +103,41 @@ final class Op implements OpConstants
 
     OPS[ACCELFUNC] = new Op(2, LL);
     OPS[ACCELPARAM] = new Op(2, LL);
+
+    OPS[NUMTOF] = new Op(2, LS);
+    OPS[FTONUMZ] = new Op(2, LS);
+    OPS[FTONUMN] = new Op(2, LS);
+    OPS[CEIL] = new Op(2, LS);
+    OPS[FLOOR] = new Op(2, LS);
+
+    OPS[FADD] = new Op(3, LLS);
+    OPS[FSUB] = new Op(3, LLS);
+    OPS[FMUL] = new Op(3, LLS);
+    OPS[FDIV] = new Op(3, LLS);
+    OPS[FMOD] = new Op(4, LLSS);
+
+    OPS[SQRT] = new Op(2, LS);
+    OPS[EXP] = new Op(2, LS);
+    OPS[LOG] = new Op(2, LS);
+    OPS[POW] = new Op(3, LLS);
+
+    OPS[SIN] = new Op(2, LS);
+    OPS[COS] = new Op(2, LS);
+    OPS[TAN] = new Op(2, LS);
+    OPS[ASIN] = new Op(2, LS);
+    OPS[ACOS] = new Op(2, LS);
+    OPS[ATAN] = new Op(2, LS);
+    OPS[ATAN2] = new Op(3, LLS);
+
+    OPS[JFEQ] = new Op(4, LLLL);
+    OPS[JFNE] = new Op(4, LLLL);
+    OPS[JFLT] = new Op(3, LLL);
+    OPS[JFLE] = new Op(3, LLL);
+    OPS[JFGT] = new Op(3, LLL);
+    OPS[JFGE] = new Op(3, LLL);
+
+    OPS[JISNAN] = new Op(2, LL);
+    OPS[JISINF] = new Op(2, LL);
 
   }
 }

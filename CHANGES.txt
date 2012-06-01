@@ -1,5 +1,5 @@
 [Since 1.06]
-30 May 2012
+1 June 2012
 
 1. David Turner made these following changes, and is solely
 responsible for any errors.
@@ -15,8 +15,9 @@ is a bit spotty still.
 5. Misc bug fixes in search, bit shifting, undoing past terp restarts,
 filtering while streaming numbers, copyb/copys.
 
-glulxercise.ulx now passes, mostly because the floating point tests
-pass when zag correctly says it doesn't support floating point.
+6. Floating point support (glulx 3.1.2)
+
+glulxercise.ulx now passes.
 
 [Since 1.05]
 18 March 2005

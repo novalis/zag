@@ -1,6 +1,7 @@
 package org.p2c2e.zag;
 
 import java.io.*;
+import java.lang.Math;
 import java.lang.System;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -125,6 +126,17 @@ public final class Zag implements OpConstants
     }
   }
 
+  private final void storeOperand(FastByteBuffer mem, int mode, 
+                                int addr, float val) {
+
+      storeOperand(mem, mode, addr, Float.floatToRawIntBits(val));
+  }
+
+  private final void storeOperand(FastByteBuffer mem, int mode, 
+                                int addr, double val) {
+
+      storeOperand(mem, mode, addr, Float.floatToRawIntBits((float)val));
+  }
 
   private final void storeOperand(FastByteBuffer mem, int mode, 
                                   int addr, int val)
@@ -336,6 +348,7 @@ public final class Zag implements OpConstants
     int[] values = new int[10];
     int[] modes = new int[10];
 
+    float f, fa, fb, fc;
 
     while(running)
     {
@@ -359,6 +372,9 @@ public final class Zag implements OpConstants
         }
       }
 
+      if (Op.OPS[opcode] == null) {
+          System.out.println("bad op: " + opcode);
+      }
       if (Op.OPS[opcode].format != null)
         parseOperands(Op.OPS[opcode], mem, modes, values);
       pc = mem.position();
@@ -837,6 +853,195 @@ public final class Zag implements OpConstants
           case 8: cpv_start = val; break;
           }
           break;
+      case NUMTOF:
+          f = (float)values[0];
+          storeOperand(mem, modes[1], values[1], f);
+          break;
+      case FTONUMZ:
+          f = Float.intBitsToFloat(values[0]);
+          if (Float.isNaN(f)) {
+              val = 0x7fffffff + (values[0] >>> 31);
+          } else {
+              val = (int) f;
+          }
+          storeOperand(mem, modes[1], values[1], val);
+          break;
+      case FTONUMN:
+          f = Float.intBitsToFloat(values[0]);
+          if (Float.isNaN(f)) {
+              val = 0x7fffffff + (values[0] >>> 31);
+          } else {
+              val = Math.round(f);
+          }
+          storeOperand(mem, modes[1], values[1], val);
+          break;
+      case CEIL:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.ceil(f));
+          break;
+      case FLOOR:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.floor(f));
+          break;
+      case FADD:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          storeOperand(mem, modes[2], values[2], fa+fb);
+          break;
+      case FSUB:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          storeOperand(mem, modes[2], values[2], fa-fb);
+          break;
+      case FMUL:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          storeOperand(mem, modes[2], values[2], fa*fb);
+          break;
+      case FDIV:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          storeOperand(mem, modes[2], values[2], fa/fb);
+          break;
+      case FMOD:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+
+          if (Float.isInfinite(fa) || fb == 0.0f) {
+              storeOperand(mem, modes[2], values[2], Float.NaN);
+              storeOperand(mem, modes[3], values[3], Float.NaN);
+          } else {
+              float remainder = fa%fb;
+              int quotient = Float.floatToRawIntBits((fa-remainder) / fb);
+              if (quotient == 0x0 || quotient == 0x80000000)
+                  quotient = (values[0] ^ values[1]) & 0x80000000;
+              storeOperand(mem, modes[2], values[2], remainder);
+              storeOperand(mem, modes[3], values[3], quotient);
+          }
+          break;
+      case SQRT:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.sqrt(f));
+          break;
+      case EXP:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.exp(f));
+          break;
+      case LOG:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.log(f));
+          break;
+      case POW:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          if ((fa == -1 && Float.isInfinite(fb)) || fa == 1) {
+              storeOperand(mem, modes[2], values[2], 1.0f);
+          } else { 
+              storeOperand(mem, modes[2], values[2], Math.pow(fa,fb));
+          }
+          break;
+      case SIN:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.sin(f));
+          break;
+      case COS:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.cos(f));
+          break;
+      case TAN:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.tan(f));
+          break;
+      case ASIN:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.asin(f));
+          break;
+      case ACOS:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.acos(f));
+          break;
+      case ATAN:
+          f = Float.intBitsToFloat(values[0]);
+          storeOperand(mem, modes[1], values[1], Math.atan(f));
+          break;
+      case ATAN2:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          storeOperand(mem, modes[2], values[2], Math.atan2(fa,fb));
+          break;
+      case JFEQ:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          fc = Float.intBitsToFloat(values[2]);
+
+          if (!Float.isNaN(fc)) {
+              if (Float.isInfinite(fa) && Float.isInfinite(fb)) {
+                  if (fa == fb) {
+                      handleRelativeJump(values[3]);
+                  }
+              } else {
+                  if (Math.abs(fa-fb) <= Math.abs(fc)) {
+                      handleRelativeJump(values[3]);
+                  }
+              }
+          }
+          break;
+      case JFNE:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          fc = Float.intBitsToFloat(values[2]);
+
+          if (Float.isNaN(fc)) {
+              handleRelativeJump(values[3]);
+          } else {
+              if (Float.isInfinite(fa) && Float.isInfinite(fb)) {
+                  if (fa != fb) {
+                      handleRelativeJump(values[3]);
+                  }
+              } else {
+                  float diff = fa-fb;
+                  fc = Math.abs(fc);
+                  if (!(diff <= fc && diff >= -fc)) {
+                      handleRelativeJump(values[3]);
+                  }
+              }
+          }
+          break;
+      case JFGT:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          if (fa > fb)
+              handleRelativeJump(values[2]);
+        break;
+      case JFGE:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          if (fa >= fb)
+              handleRelativeJump(values[2]);
+        break;
+      case JFLT:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          if (fa < fb)
+              handleRelativeJump(values[2]);
+        break;
+      case JFLE:
+          fa = Float.intBitsToFloat(values[0]);
+          fb = Float.intBitsToFloat(values[1]);
+          if (fa <= fb)
+              handleRelativeJump(values[2]);
+        break;
+      case JISNAN:
+          f = Float.intBitsToFloat(values[0]);
+          if (Float.isNaN(f))
+              handleRelativeJump(values[1]);
+        break;
+      case JISINF:
+          f = Float.intBitsToFloat(values[0]);
+          if (Float.isInfinite(f))
+              handleRelativeJump(values[1]);
+        break;
+ 
       }
     }
   }
@@ -1248,6 +1453,8 @@ public final class Zag implements OpConstants
         return 1;
     case 10:
         return (b >= 1 && b <= 7) ? 1 : 0;
+    case 11:
+        return 1;
     default:
       return 0;
     }

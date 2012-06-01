@@ -91,6 +91,41 @@ public interface OpConstants
   public static final int ACCELFUNC = 0x180;
   public static final int ACCELPARAM = 0x181;
 
+  public static final int NUMTOF = 0x190;
+  public static final int FTONUMZ = 0x191;
+  public static final int FTONUMN = 0x192;
+
+  public static final int CEIL = 0x198;
+  public static final int FLOOR = 0x199;
+
+  public static final int FADD = 0x1A0;
+  public static final int FSUB = 0x1A1;
+  public static final int FMUL = 0x1A2;
+  public static final int FDIV = 0x1A3;
+  public static final int FMOD = 0x1A4;
+
+  public static final int SQRT = 0x1A8;
+  public static final int EXP = 0x1A9;
+  public static final int LOG = 0x1AA;
+  public static final int POW = 0x1AB;
+
+  public static final int SIN = 0x1B0;
+  public static final int COS = 0x1B1;
+  public static final int TAN = 0x1B2;
+  public static final int ASIN = 0x1B3;
+  public static final int ACOS = 0x1B4;
+  public static final int ATAN = 0x1B5;
+  public static final int ATAN2 = 0x1B6;
+
+  public static final int JFEQ = 0x1C0;
+  public static final int JFNE = 0x1C1;
+  public static final int JFLT = 0x1C2;
+  public static final int JFLE = 0x1C3;
+  public static final int JFGT = 0x1C4;
+  public static final int JFGE = 0x1C5;
+
+  public static final int JISNAN = 0x1C8;
+  public static final int JISINF = 0x1C9;
 
   public static final int LOAD = 0;
   public static final int STORE = 1;
@@ -98,6 +133,7 @@ public interface OpConstants
   public static final int[] L = {LOAD};
   public static final int[] LL = {LOAD, LOAD};
   public static final int[] LLL = {LOAD, LOAD, LOAD};
+  public static final int[] LLLL = {LOAD, LOAD, LOAD, LOAD};
   public static final int[] LLLS = {LOAD, LOAD, LOAD, STORE};
   public static final int[] LLLLS = {LOAD, LOAD, LOAD, LOAD, STORE};
   public static final int[] LLLLLLS = 
@@ -109,4 +145,5 @@ public interface OpConstants
   public static final int[] SS = {STORE, STORE};
   public static final int[] SL = {STORE, LOAD};
   public static final int[] LLS = {LOAD, LOAD, STORE};
+  public static final int[] LLSS = {LOAD, LOAD, STORE, STORE};
 }
