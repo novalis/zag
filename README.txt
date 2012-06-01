@@ -1,10 +1,12 @@
 
-This is Zag, an implementation of glulx v2.0.0 for Java
+This is Zag, an implementation of glulx v3.1.2 for Java
 
 © 2003-2004, Jon Zeppieri (see license/README-license.txt for details)
 [jalfred97 @ yahoo . com]
 
-© 2012, David Turner <novalis@novalis.org> (unicode, heap, misc fixes)
+© 2012, David Turner <novalis@novalis.org> (unicode, heap, floats,
+misc fixes) 
+
 -------------------------------------------------------
 
 Contents:
@@ -22,7 +24,7 @@ Contents:
 
 1. Introduction:
 
-Zag implements v2.0.0 of the glulx standard[1].  It is (to my
+Zag implements v3.1.2 of the glulx standard[1].  It is (to my
 knowledge) fully compliant with the specification, and, moreover, it
 is a feature complete implementation.  Even SONG music is now supported.
 

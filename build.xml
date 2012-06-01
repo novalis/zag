@@ -1,9 +1,9 @@
 <project name="zag" default="all" basedir=".">
 <description>
-	An implementation of glulx v.2.0.0 for Java
+	An implementation of glulx v.3.1.2 for Java
 </description>
 
-<property name="version" value="1.06"/>
+<property name="version" value="1.07"/>
 <property name="packages" value="micromod, micromod.output, micromod.resamplers, micromod.output.converters, com.sixlegs.image.png, org.p2c2e.util, org.p2c2e.blorb, org.p2c2e.zing, org.p2c2e.zag"/>
 <property name="src" location="${basedir}"/>
 <property name="bin" location="${basedir}/bin"/>

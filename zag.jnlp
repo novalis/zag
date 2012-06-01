@@ -4,7 +4,7 @@
         <title>Zag</title>
         <vendor>Jon Zeppieri</vendor>
         <homepage href="http://mirror.ifarchive.org/indexes/if-archiveXprogrammingXglulxXinterpretersXzag.html" />
-        <description>Glulx 2.0.0 for Java</description>
+        <description>Glulx 3.1.2 for Java</description>
 </information>
 <offline-allowed/>
 <security>
@@ -12,7 +12,7 @@
 </security>
 <resources>
         <j2se version="1.4+"/>
-        <jar href="zag-1.05.jar"/>
+        <jar href="zag-1.07.jar"/>
 </resources>
 <application-desc main-class="org.p2c2e.zag.Main" />
 </jnlp>
