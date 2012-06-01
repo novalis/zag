@@ -113,7 +113,6 @@ public class Heap {
 
     /** assumes enough space reserved */
     public void mallocAt(int start, int size) {
-        dump();
         HeapBlock next = freeList;
         HeapBlock cur = null;
         while (next != null) {
