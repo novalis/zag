@@ -1,4 +1,12 @@
 
+You actually want Banbury's fork of this version of Zag, which
+has more features and cleaner code:
+
+https://github.com/Banbury/zag
+
+
+OLD README
+---------
 This is Zag, an implementation of glulx v3.1.2 for Java
 
 © 2003-2004, Jon Zeppieri (see license/README-license.txt for details)
